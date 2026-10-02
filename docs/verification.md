@@ -4,7 +4,7 @@ Fecha: 2 de octubre de 2026.
 
 ## Automática
 
-- 37 pruebas de dominio, proveedor y zona horaria: todas aprobadas.
+- 41 pruebas de dominio, proveedor y zona horaria: todas aprobadas.
 - TypeScript en modo estricto y compilación de producción: aprobados.
 - Prettier: aprobado.
 - Auditoría de dependencias al instalar: cero vulnerabilidades después de actualizar Vitest a 4.1.11.
@@ -28,6 +28,6 @@ Se verificaron `/api/status`, `/api/quotes` sin clave y parámetros inválidos. 
 
 ## Pendiente de credenciales o infraestructura
 
-No se ejecutaron llamadas autenticadas reales a CoinMarketCap porque no se proporcionó API key. La compatibilidad se verificó contra la documentación oficial y respuestas de contrato en pruebas; cobertura, latencia y créditos efectivos deben validarse con el plan del usuario.
+Tras configurar credenciales locales, se verificaron cotizaciones autenticadas de BTC en USD y MXN, una referencia histórica de BTC de un año antes y conversión fiat actual USD/MXN. Se corrigió la interpretación del código de éxito textual `"0"` de CMC v3 y se añadieron cuatro pruebas de regresión para códigos numéricos y textuales. No se incluyen credenciales ni datos de cuenta en el repositorio. La cobertura para otros activos, fechas y conversiones históricas sigue dependiendo del plan.
 
 No se desplegó un servicio público ni se conectó un proveedor de acciones/ETF. La persistencia es local al navegador, sin cuentas ni sincronización. El histórico del gráfico se muestrea en hasta ocho referencias por período para limitar consumo. Consulta README y valuation.md para los límites funcionales completos.

@@ -75,7 +75,7 @@ Caché en memoria: 60 s para actual, 1 h para histórico y búsqueda, 24 h para 
 
 Históricos: se consultan referencias horarias dentro de las 24 h previas. Para fechas de más de 28 días, se solicitan referencias diarias para aprovechar la cobertura diaria del plan. Se descartan referencias posteriores al instante solicitado. El gráfico real usa hasta 8 puntos muestreados por período para controlar consumo; **no representa una serie diaria exhaustiva**. No se conectan huecos ni se inventan precios. Las cotizaciones cripto se solicitan directamente en la moneda elegida; el efectivo en otra moneda requiere la conversión fiat y su fecha real.
 
-La disponibilidad, antigüedad máxima, créditos, frecuencia y derechos comerciales dependen del plan vigente de CMC y de cada activo. Un plan con históricos cripto diarios puede no incluir conversiones fiat históricas equivalentes. Una respuesta posterior de FX se rechaza. Sin cobertura se muestra un subtotal identificado o “sin datos”, nunca un total completo ficticio. No se ha validado una consulta autenticada real: no se proporcionaron credenciales.
+La disponibilidad, antigüedad máxima, créditos, frecuencia y derechos comerciales dependen del plan vigente de CMC y de cada activo. Un plan con históricos cripto diarios puede no incluir conversiones fiat históricas equivalentes. Una respuesta posterior de FX se rechaza. Sin cobertura se muestra un subtotal identificado o “sin datos”, nunca un total completo ficticio. El 2 de octubre de 2026 se verificaron consultas autenticadas de BTC en USD/MXN, una referencia histórica de BTC de un año antes y conversión fiat actual USD/MXN. Esta comprobación no garantiza cobertura para otros activos o fechas.
 
 ## Datos y supuestos
 

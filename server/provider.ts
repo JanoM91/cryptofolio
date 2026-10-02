@@ -51,7 +51,8 @@ export async function cmc(path: string, params: Record<string, string>, ttl = 60
         res.status,
       );
     const body = (await res.json()) as any;
-    if (body.status?.error_code)
+    // CMC v3 can serialize a successful error_code as "0" rather than 0.
+    if (body.status?.error_code != null && Number(body.status.error_code) !== 0)
       throw new MarketError(
         'CoinMarketCap rechazó la consulta. Revisa plan, créditos y cobertura.',
       );

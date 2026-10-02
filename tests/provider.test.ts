@@ -1,11 +1,29 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { normalizeQuotes, CoinMarketCapProvider } from '../server/provider';
+import { normalizeQuotes, CoinMarketCapProvider, cmc } from '../server/provider';
 const at = '2025-01-02T12:00:00.000Z';
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
 });
 describe('CoinMarketCap normalization', () => {
+  it.each([0, '0'])('accepts successful error code %j at the HTTP boundary', async (code) => {
+    vi.stubEnv('CMC_API_KEY', 'test-key');
+    const body = { status: { error_code: code }, data: [{ id: 1 }] };
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(JSON.stringify(body))));
+    await expect(
+      cmc('/v3/cryptocurrency/quotes/latest', { id: '1', test: typeof code }),
+    ).resolves.toEqual(body);
+  });
+  it.each([1006, '1006'])('still rejects nonzero error code %j', async (code) => {
+    vi.stubEnv('CMC_API_KEY', 'test-key');
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(new Response(JSON.stringify({ status: { error_code: code } }))),
+    );
+    await expect(
+      cmc('/v3/cryptocurrency/quotes/latest', { id: '1', test: 'error-' + typeof code }),
+    ).rejects.toThrow('rechazó');
+  });
   it('parses latest v3 arrays and currency quote arrays', () => {
     const result = normalizeQuotes(
       [
