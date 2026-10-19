@@ -4,7 +4,7 @@ Panel personal de gestión y análisis de portafolios. Interfaz en español, MXN
 
 ## Inicio rápido
 
-Requiere Node.js 22.12+ o 24 LTS y npm.
+Requiere Node.js 24 LTS y npm.
 
 ```sh
 npm ci
@@ -32,7 +32,7 @@ npm run build
 npm start           # sirve dist/ y API en http://127.0.0.1:3001
 ```
 
-`npm start` necesita las dependencias de desarrollo instaladas porque ejecuta TypeScript con `tsx`. En un servicio público hay que añadir autenticación al proxy de precios y HTTPS; esta entrega se enlaza a loopback y está pensada para uso personal local. No hay autenticación ni servidor de datos multiusuario.
+`npm start` necesita las dependencias de desarrollo instaladas porque ejecuta TypeScript con `tsx`. El modo local se enlaza a loopback. Ya hay cuentas privadas optativas con SQLite, registro por invitación y migración revisable. Consulta [la guía de cuentas](docs/accounts.md) para activarlas, respaldar la base y preparar un despliegue HTTPS. Esta entrega no publica un servicio remoto.
 
 ## Flujos implementados
 
@@ -42,6 +42,7 @@ npm start           # sirve dist/ y API en http://127.0.0.1:3001
 - **CSV:** plantillas descargables, verificación de ID/símbolo, validación fila a fila y revisión completa antes de confirmar. La importación es atómica: no se guardan filas de un archivo inválido. Importar de nuevo el mismo archivo agrega movimientos nuevamente; revisar antes de confirmar.
 - **Historial:** valoración de cantidades actuales a precios pasados y reconstrucción de posiciones reales. Esta última exige confirmar la integridad del historial en Configuración.
 - **Simulador:** operaciones por cantidad o monto, comisiones, venta con conservación de efectivo y reinversión mediante compras posteriores en la misma moneda. Guardar, renombrar, eliminar y comparar alternativas. Escenario rápido por precio absoluto o porcentaje.
+- **Cuentas optativas:** sesiones privadas, registro restringido, datos separados por usuario, guardados con control de revisiones y revisión antes de copiar el portafolio local.
 - **Configuración:** moneda base, zona horaria, cobertura del historial, integración, exportación/restauración JSON y eliminación completa.
 
 ## Arquitectura
@@ -54,11 +55,14 @@ shared/model.ts      Esquemas Zod y tipos compartidos
 shared/engine.ts     Motor de saldos, costo, valoración y simulación (Decimal.js)
 shared/demo.ts       Fixtures ficticios, separados del proveedor real
 server/provider.ts   Interfaz MarketProvider + adaptador CoinMarketCap
-server/index.ts      Express, validación HTTP, límites y cabeceras
+server/index.ts      Configuración y arranque seguro
+server/app.ts        Express, validación HTTP, límites y cabeceras
+server/accounts.ts   Usuarios, sesiones, CSRF y almacenamiento SQLite
+server/backup.ts     Respaldo consistente de la base de datos
 tests/              Pruebas deterministas de cálculos y contrato del proveedor
 ```
 
-Vite permite iterar y compilar sin añadir una plataforma de despliegue. Express mantiene secretos y caché del lado servidor. `localStorage` evita servicios adicionales para un portafolio personal. Todos los decimales del dominio se guardan como cadenas; solo gráficos y formato final usan números de presentación.
+Vite permite iterar y compilar sin añadir una plataforma de despliegue. Express mantiene secretos y caché del lado servidor. `localStorage` conserva el modo personal local. El modo de cuentas usa SQLite en el mismo servidor, sin un servicio de base de datos externo. Todos los decimales del dominio se guardan como cadenas; solo gráficos y formato final usan números de presentación.
 
 El modelo contempla `crypto`, `cash`, `stock` y `etf`. Acciones y ETF aún no tienen fuente ni formulario específico: se necesita implementar otro adaptador `MarketProvider` y resolver identificadores/mercados. Nunca se envían a endpoints cripto.
 
@@ -81,6 +85,6 @@ La disponibilidad, antigüedad máxima, créditos, frecuencia y derechos comerci
 
 Consulta [docs/valuation.md](docs/valuation.md) para las reglas exactas y [docs/verification.md](docs/verification.md) para la verificación.
 
-Se guardan posiciones, movimientos, escenarios y preferencias en `cryptofolio:portfolio:v1` del navegador. El servidor recibe IDs de activos, fechas y moneda, no cantidades ni notas. No hay sincronización, cifrado de almacenamiento local ni recuperación remota. Exporta JSON antes de borrar datos del navegador o cambiar de dispositivo. La restauración valida el archivo y pide confirmación antes de sustituir datos.
+En modo local se guardan posiciones, movimientos, escenarios y preferencias en `cryptofolio:portfolio:v1` del navegador; el servidor solo recibe parámetros para consultar precios. En modo cuenta el servidor almacena el portafolio completo, separado por usuario. CoinMarketCap no recibe cantidades ni notas en ninguno de los modos. No hay cifrado de almacenamiento ni sincronización automática entre una copia local y una cuenta. Exporta JSON antes de borrar datos o cambiar de dispositivo. La restauración valida el archivo y pide confirmación antes de sustituir datos. Consulta [datos, seguridad y límites de cuentas](docs/accounts.md).
 
 No conecta wallets/exchanges, ejecuta órdenes, calcula impuestos ni ofrece recomendaciones de inversión.

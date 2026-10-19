@@ -106,19 +106,27 @@ export function PositionForm({
   p: Portfolio;
   demo: boolean;
   now: string;
-  onSave: (x: Position) => void;
+  onSave: (x: Position) => void | Promise<void>;
   onClose: () => void;
 }) {
   const [asset, setAsset] = useState(position?.asset ?? catalog[0]);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   return (
-    <Modal title={position ? 'Editar saldo inicial' : 'Añadir posición'} onClose={onClose}>
+    <Modal
+      title={position ? 'Editar saldo inicial' : 'Añadir posición'}
+      onClose={() => {
+        if (!saving) onClose();
+      }}
+    >
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          if (saving) return;
+          setSaving(true);
           try {
             const f = new FormData(e.currentTarget);
-            onSave(
+            await onSave(
               positionSchema.parse({
                 id: position?.id ?? crypto.randomUUID(),
                 asset,
@@ -131,6 +139,8 @@ export function PositionForm({
             onClose();
           } catch (e) {
             setError(errorText(e));
+          } finally {
+            setSaving(false);
           }
         }}
       >
@@ -178,10 +188,12 @@ export function PositionForm({
           </p>
         )}
         <div className="modal-actions">
-          <button type="button" onClick={onClose}>
+          <button type="button" disabled={saving} onClick={onClose}>
             Cancelar
           </button>
-          <button className="primary">Guardar posición</button>
+          <button className="primary" disabled={saving}>
+            {saving ? 'Guardando…' : 'Guardar posición'}
+          </button>
         </div>
       </form>
     </Modal>
@@ -198,7 +210,7 @@ export function TransactionForm({
   p: Portfolio;
   demo: boolean;
   now: string;
-  onSave: (x: Transaction) => void;
+  onSave: (x: Transaction) => void | Promise<void>;
   onClose: () => void;
   hypothetical?: boolean;
 }) {
@@ -206,11 +218,19 @@ export function TransactionForm({
   const [type, setType] = useState<Transaction['type']>('buy');
   const [mode, setMode] = useState('quantity');
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
   return (
-    <Modal title={hypothetical ? 'Operación hipotética' : 'Registrar movimiento'} onClose={onClose}>
+    <Modal
+      title={hypothetical ? 'Operación hipotética' : 'Registrar movimiento'}
+      onClose={() => {
+        if (!saving) onClose();
+      }}
+    >
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
+          if (saving) return;
+          setSaving(true);
           try {
             const f = new FormData(e.currentTarget);
             const price = String(f.get('price') || '0');
@@ -218,7 +238,7 @@ export function TransactionForm({
               mode === 'amount'
                 ? new Decimal(String(f.get('quantity'))).div(price).toFixed(18)
                 : String(f.get('quantity'));
-            onSave(
+            await onSave(
               transactionSchema.parse({
                 id: crypto.randomUUID(),
                 asset,
@@ -235,6 +255,8 @@ export function TransactionForm({
             onClose();
           } catch (e) {
             setError(errorText(e));
+          } finally {
+            setSaving(false);
           }
         }}
       >
@@ -311,11 +333,11 @@ export function TransactionForm({
           </p>
         )}
         <div className="modal-actions">
-          <button type="button" onClick={onClose}>
+          <button type="button" disabled={saving} onClick={onClose}>
             Cancelar
           </button>
-          <button className="primary">
-            {hypothetical ? 'Añadir operación' : 'Guardar movimiento'}
+          <button className="primary" disabled={saving}>
+            {saving ? 'Guardando…' : hypothetical ? 'Añadir operación' : 'Guardar movimiento'}
           </button>
         </div>
       </form>
@@ -328,7 +350,7 @@ export function ImportForm({
   onClose,
 }: {
   p: Portfolio;
-  onSave: (p: Portfolio) => void;
+  onSave: (p: Portfolio) => void | Promise<void>;
   onClose: () => void;
 }) {
   const [kind, setKind] = useState('positions');
@@ -487,16 +509,19 @@ export function ImportForm({
         <button
           className="primary"
           disabled={busy || !!errors.length || !preview.length}
-          onClick={() => {
+          onClick={async () => {
+            setBusy(true);
             try {
               const next = {
                 ...p,
                 [kind]: [...p[kind as 'positions' | 'transactions'], ...preview],
               };
-              onSave(next);
+              await onSave(next);
               onClose();
             } catch (e) {
               setErrors([errorText(e)]);
+            } finally {
+              setBusy(false);
             }
           }}
         >

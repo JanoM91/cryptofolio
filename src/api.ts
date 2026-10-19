@@ -1,8 +1,24 @@
 import { demoMarket } from '../shared/demo';
 import type { Currency, MarketResult } from '../shared/model';
-export async function api<T>(url: string): Promise<T> {
-  const res = await fetch(url);
-  const data = await res.json();
+export async function api<T>(url: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      signal: AbortSignal.timeout(20000),
+      ...init,
+      credentials: 'same-origin',
+    });
+  } catch {
+    throw new Error(
+      'No se recibió respuesta del servidor. Comprueba la conexión. Si estabas guardando, descarga el borrador y recarga para revisar si el cambio llegó a guardarse.',
+    );
+  }
+  let data;
+  try {
+    data = await res.json();
+  } catch {
+    throw new Error('El servidor devolvió una respuesta no válida. Intenta de nuevo.');
+  }
   if (!res.ok) throw new Error(data.error || 'No se pudo completar la consulta.');
   return data;
 }

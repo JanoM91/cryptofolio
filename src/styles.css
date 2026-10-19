@@ -1663,3 +1663,23 @@ dialog::backdrop {
     transition: none !important;
   }
 }
+
+.account-loading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--muted, #74798a);
+}
+.account-card h2 {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.migration-json {
+  max-height: 280px;
+  overflow: auto;
+  font-size: 11px;
+}
+.account-card .actions {
+  margin-top: 18px;
+}

@@ -30,4 +30,15 @@ Se verificaron `/api/status`, `/api/quotes` sin clave y parámetros inválidos. 
 
 Tras configurar credenciales locales, se verificaron cotizaciones autenticadas de BTC en USD y MXN, una referencia histórica de BTC de un año antes y conversión fiat actual USD/MXN. Se corrigió la interpretación del código de éxito textual `"0"` de CMC v3 y se añadieron cuatro pruebas de regresión para códigos numéricos y textuales. No se incluyen credenciales ni datos de cuenta en el repositorio. La cobertura para otros activos, fechas y conversiones históricas sigue dependiendo del plan.
 
-No se desplegó un servicio público ni se conectó un proveedor de acciones/ETF. La persistencia es local al navegador, sin cuentas ni sincronización. El histórico del gráfico se muestrea en hasta ocho referencias por período para limitar consumo. Consulta README y valuation.md para los límites funcionales completos.
+No se desplegó un servicio público ni se conectó un proveedor de acciones/ETF. La entrega inicial guardaba los datos en el navegador; la ampliación de cuentas se describe abajo. El histórico del gráfico se muestrea en hasta ocho referencias por período para limitar consumo. Consulta README y valuation.md para los límites funcionales completos.
+
+## Ampliación del 19 de octubre de 2026: cuentas privadas
+
+- 51 pruebas automáticas: dominio, proveedor, fechas y 10 casos de cuentas/persistencia.
+- Pruebas HTTP con dos cuentas distintas: aislamiento, invitación inválida, credenciales inválidas, origen, CSRF, cookies, hashes, sesión caducada, cierre de sesión, validación del portafolio, copia inicial, conflictos simultáneos y borrado con revisión.
+- Persistencia tras cerrar y abrir SQLite, conservación de 18 decimales y permisos del archivo.
+- Interfaz probada contra un servidor temporal sin clave CMC y una base en memoria: copia local ficticia de 0.125 BTC, revisión y confirmación de migración, edición en cuenta a 0.25 BTC, recuperación tras volver a entrar y copia local de 0.125 BTC conservada al cerrar sesión.
+- Diseño de la nueva sección comprobado en escritorio y móvil a 390 px; copia y reapertura del respaldo SQLite comprobadas con una base temporal.
+- El entorno temporal usó un usuario y contraseña de prueba. No se migraron posiciones reales ni se modificó la configuración privada del usuario.
+
+La activación, el respaldo y las limitaciones están en [accounts.md](accounts.md). No se ha desplegado un servicio remoto, habilitado registro público ni añadido recuperación de contraseñas.

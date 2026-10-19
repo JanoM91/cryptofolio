@@ -30,7 +30,7 @@ export default function Scenarios({
   data,
 }: {
   p: Portfolio;
-  save: (p: Portfolio) => void;
+  save: (p: Portfolio) => Promise<void>;
   demo: boolean;
   now: string;
   currency: Currency;
@@ -239,7 +239,7 @@ export default function Scenarios({
           </button>
           <button
             className="primary"
-            onClick={() => {
+            onClick={async () => {
               try {
                 const s = scenarioSchema.parse({
                   id: crypto.randomUUID(),
@@ -249,7 +249,7 @@ export default function Scenarios({
                   trades,
                 });
                 simulate(p, s.date, s.trades);
-                save({ ...p, scenarios: [...p.scenarios, s] });
+                await save({ ...p, scenarios: [...p.scenarios, s] });
                 setTrades([]);
                 setError('');
               } catch (e) {
@@ -287,9 +287,9 @@ export default function Scenarios({
               <input
                 aria-label="Nombre del escenario"
                 defaultValue={s.name}
-                onBlur={(e) => {
+                onBlur={async (e) => {
                   try {
-                    save({
+                    await save({
                       ...p,
                       scenarios: p.scenarios.map((x) =>
                         x.id === s.id ? { ...x, name: e.target.value } : x,
@@ -306,7 +306,13 @@ export default function Scenarios({
               <button
                 className="icon-button"
                 aria-label="Eliminar escenario"
-                onClick={() => save({ ...p, scenarios: p.scenarios.filter((x) => x.id !== s.id) })}
+                onClick={async () => {
+                  try {
+                    await save({ ...p, scenarios: p.scenarios.filter((x) => x.id !== s.id) });
+                  } catch (e) {
+                    setError(errorText(e));
+                  }
+                }}
               >
                 <Trash2 size={16} />
               </button>

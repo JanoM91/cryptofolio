@@ -1,5 +1,6 @@
 import { errorText } from '../shared/model';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef, type ReactNode } from 'react';
+import type { RemoteWorkspace } from './Accounts';
 import {
   LayoutDashboard,
   Wallet,
@@ -54,10 +55,10 @@ const labels: Record<string, string> = {
   scenarios: 'Simulador',
   settings: 'Configuración',
 };
-function load() {
-  const raw = localStorage.getItem(storageKey);
-  if (!raw) return { portfolio: emptyPortfolio(), error: '' };
+export function loadLocal() {
   try {
+    const raw = localStorage.getItem(storageKey);
+    if (!raw) return { portfolio: emptyPortfolio(), error: '' };
     return { portfolio: validateLedger(portfolioSchema.parse(JSON.parse(raw))), error: '' };
   } catch {
     return {
@@ -67,8 +68,19 @@ function load() {
     };
   }
 }
-export default function App() {
-  const [initial] = useState(load);
+export default function App({
+  remote,
+  accountPanel,
+}: {
+  remote?: RemoteWorkspace;
+  accountPanel?: ReactNode;
+}) {
+  const [initial] = useState(() =>
+    remote ? { portfolio: remote.portfolio, error: '' } : loadLocal(),
+  );
+  const writing = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [failedDraft, setFailedDraft] = useState<Portfolio>();
   const [personal, setPersonal] = useState(initial.portfolio);
   const [sample, setSample] = useState(demoPortfolio);
   const [demo, setDemo] = useState(false);
@@ -128,21 +140,45 @@ export default function App() {
     const t = setTimeout(() => setToast(''), 3500);
     return () => clearTimeout(t);
   }, [toast]);
-  function save(next: Portfolio) {
+  async function save(next: Portfolio) {
     const parsed = validateLedger(portfolioSchema.parse(next));
-    if (demo) setSample(parsed);
-    else {
-      if (initial.error && localStorage.getItem(storageKey))
-        throw new Error('Exporta y elimina los datos no válidos antes de guardar.');
-      try {
-        localStorage.setItem(storageKey, JSON.stringify(parsed));
-      } catch {
-        throw new Error('No se pudo guardar: revisa el espacio y los permisos del navegador.');
+    if (writing.current) throw new Error('Espera a que termine el guardado anterior.');
+    writing.current = true;
+    setSaving(true);
+    try {
+      if (demo) setSample(parsed);
+      else {
+        if (remote) await remote.save(parsed);
+        else {
+          if (initial.error && localStorage.getItem(storageKey))
+            throw new Error('Exporta y elimina los datos no válidos antes de guardar.');
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(parsed));
+          } catch {
+            throw new Error('No se pudo guardar: revisa el espacio y los permisos del navegador.');
+          }
+        }
+        setPersonal(parsed);
       }
-      setPersonal(parsed);
+      setFailedDraft(undefined);
+      setToast('Cambios guardados');
+    } catch (e) {
+      setFailedDraft(parsed);
+      throw e;
+    } finally {
+      writing.current = false;
+      setSaving(false);
     }
-    setToast('Cambios guardados');
   }
+  useEffect(() => {
+    if (!saving && !failedDraft) return;
+    const warn = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [saving, failedDraft]);
   const refresh = () => {
     setNow(new Date().toISOString());
     setTick((t) => t + 1);
@@ -229,8 +265,8 @@ export default function App() {
           <div className="profile">
             <span className="avatar">YO</span>
             <div>
-              <strong>Mi espacio</strong>
-              <small>Almacenamiento local</small>
+              <strong>{remote?.username || 'Mi espacio'}</strong>
+              <small>{remote ? 'Guardado en el servidor' : 'Almacenamiento local'}</small>
             </div>
             <ShieldCheck size={17} />
           </div>
@@ -256,7 +292,7 @@ export default function App() {
           <div className="topbar-actions">
             <span className="private-label">
               <ShieldCheck size={14} />
-              Privado y local
+              {remote ? 'Cuenta privada' : 'Privado y local'}
             </span>
             <select
               aria-label="Moneda de visualización"
@@ -304,6 +340,27 @@ export default function App() {
               <ArrowUpRight size={14} />
             </button>
           </div>
+          {saving && (
+            <p className="notice" role="status">
+              Guardando cambios…
+            </p>
+          )}
+          {failedDraft && (
+            <div className="error" role="alert">
+              El último cambio no se confirmó. Conservamos un borrador para que puedas descargarlo
+              antes de recargar o salir.
+              <button
+                onClick={() =>
+                  download(
+                    'cryptofolio-borrador-sin-guardar.json',
+                    JSON.stringify(failedDraft, null, 2),
+                  )
+                }
+              >
+                Descargar borrador
+              </button>
+            </div>
+          )}
           {error && (
             <p className="error" role="alert">
               {error}
@@ -461,15 +518,32 @@ export default function App() {
                 </div>
               </div>
               <div className="settings-grid">
+                <div
+                  onClickCapture={(e) => {
+                    if (!(e.target as HTMLElement).closest('[data-leaves-workspace]')) return;
+                    if (
+                      saving ||
+                      (failedDraft &&
+                        !window.confirm(
+                          'Hay un borrador sin guardar. Descárgalo antes de salir. ¿Descartar ese borrador y continuar?',
+                        ))
+                    ) {
+                      e.preventDefault();
+                      e.stopPropagation();
+                    } else setFailedDraft(undefined);
+                  }}
+                >
+                  {accountPanel}
+                </div>
                 <section className="card">
                   <h2>Preferencias del portafolio</h2>
                   <form
                     key={demo ? 'demo' : 'personal'}
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
                       const f = new FormData(e.currentTarget);
                       try {
-                        save({
+                        await save({
                           ...p,
                           name: String(f.get('name')),
                           baseCurrency: f.get('baseCurrency') as Currency,
@@ -582,8 +656,9 @@ export default function App() {
                 <section className="card">
                   <h2>Importar y exportar</h2>
                   <p>
-                    Las posiciones, movimientos, preferencias y escenarios se guardan únicamente en
-                    este navegador. No hay cuentas ni sincronización entre dispositivos.
+                    {remote
+                      ? 'Las posiciones, movimientos, preferencias y escenarios se guardan en tu cuenta. Puedes abrirlos desde otro dispositivo con acceso a este servidor. Recarga para recibir cambios hechos en otra sesión.'
+                      : 'Las posiciones, movimientos, preferencias y escenarios de este espacio se guardan en este navegador. Exporta una copia para conservarlos.'}
                   </p>
                   <div className="actions wrap">
                     <button onClick={() => setModal('import')}>
@@ -620,7 +695,7 @@ export default function App() {
                             )
                           )
                             return;
-                          save(next);
+                          await save(next);
                           setError('');
                         } catch (e) {
                           setError(errorText(e));
@@ -633,9 +708,10 @@ export default function App() {
                 <section className="card">
                   <h2>Privacidad y control</h2>
                   <p>
-                    El servidor solo recibe IDs de activos, moneda y fechas para consultar precios.
-                    Las cantidades y notas no se envían al proveedor. Cualquier persona con acceso a
-                    este perfil del navegador puede ver los datos locales.
+                    {remote
+                      ? 'El servidor almacena tu portafolio y lo separa por cuenta. Las contraseñas se guardan como hashes; los datos del portafolio no están cifrados en la base de datos. Quien administra el servidor puede acceder al archivo de datos.'
+                      : 'Cualquier persona con acceso a este perfil del navegador puede ver los datos locales. En modo local, el servidor solo recibe IDs de activos, moneda y fechas para consultar precios.'}{' '}
+                    Las cantidades y notas no se envían a CoinMarketCap.
                   </p>
                   <p>
                     Aplicación de análisis sin ejecución de órdenes, conexión de wallets, cálculo de
@@ -706,17 +782,23 @@ export default function App() {
             <button onClick={() => setDeleteTarget(null)}>Cancelar</button>
             <button
               className="danger"
-              onClick={() => {
+              disabled={saving}
+              onClick={async () => {
                 try {
                   if (deleteTarget.kind === 'portfolio') {
                     if (demo) setSample(emptyPortfolio());
-                    else {
+                    else if (remote) {
+                      setSaving(true);
+                      await remote.remove();
+                      setPersonal(emptyPortfolio());
+                      setFailedDraft(undefined);
+                    } else {
                       localStorage.removeItem(storageKey);
                       setPersonal(emptyPortfolio());
                       initial.error = '';
                     }
                   } else
-                    save({
+                    await save({
                       ...p,
                       [deleteTarget.kind === 'position' ? 'positions' : 'transactions']: p[
                         deleteTarget.kind === 'position' ? 'positions' : 'transactions'
@@ -728,6 +810,8 @@ export default function App() {
                 } catch (e) {
                   setError(errorText(e));
                   setDeleteTarget(null);
+                } finally {
+                  setSaving(false);
                 }
               }}
             >
